@@ -10,6 +10,7 @@ It keeps the useful interaction model of the original `w88975.code-translate` ex
 - Load only the dictionary shard needed for the current word, so activation stays small and fast.
 - Batch missing segments into one `translateHtml` request instead of opening a third-party translation link.
 - Return the hover immediately with a local-dictionary loading state, then update it with local results, online results, or the actual online error.
+- Keep the original immersive hover layout: the first line contains only the term and `/phonetic/`, the translation starts on the next line, and compound terms are separated by `*****` without source labels.
 - Continue to work offline for local dictionary hits; network access is used only for missing terms when remote fallback is enabled.
 - Run in the desktop and web extension hosts without native SQLite dependencies.
 

@@ -19,27 +19,17 @@ function formatDetail(value: string): string {
     .join("  \n");
 }
 
-function sourceLabel(result: SegmentTranslation): string {
-  if (result.status === "loading") {
-    return result.source === "google" ? "Google 在线回退" : "查询中";
-  }
-  if (result.status === "error") {
-    return "Google 在线回退";
+function formatPhonetic(value: string | undefined): string {
+  if (!value) {
+    return "";
   }
 
-  const source = result.source;
-  switch (source) {
-    case "google":
-      return "Google 在线回退";
-    case "none":
-      return "未找到";
-    default:
-      return "本地词库";
-  }
+  const normalized = value.trim().replace(/^\/+|\/+$/g, "");
+  return normalized ? ` /${escapeMarkdown(normalized)}/` : "";
 }
 
 export function buildHoverMarkdown(originText: string, results: SegmentTranslation[]): string {
-  const lines = [`翻译 \`${escapeInlineCode(originText)}\``, ""];
+  const blocks: string[] = [];
   for (const result of results) {
     const details = result.status === "loading"
       ? result.source === "google" ? "$(sync~spin) 正在在线翻译…" : "$(sync~spin) 正在查询本地词库…"
@@ -47,14 +37,10 @@ export function buildHoverMarkdown(originText: string, results: SegmentTranslati
         ? `在线翻译失败：${escapeMarkdown(result.error || "未知错误")}`
         : result.translation
           ? formatDetail(result.translation)
-          : "本地词库暂无结果，在线翻译也暂时不可用。";
-    const phonetic = result.phonetic ? ` _${escapeMarkdown(result.phonetic)}_` : "";
-    const partOfSpeech = result.partOfSpeech ? ` _${escapeMarkdown(result.partOfSpeech)}_` : "";
-    const headword = result.headword && result.headword.toLowerCase() !== result.term.toLowerCase()
-      ? ` （词形：\`${escapeInlineCode(result.headword)}\`）`
-      : "";
-    lines.push(`- \`${escapeInlineCode(result.term)}\`${phonetic}${partOfSpeech}${headword}：${details} _（${sourceLabel(result)}）_`);
+          : "暂无译文";
+    const firstLine = `\`${escapeInlineCode(result.term)}\`${formatPhonetic(result.phonetic)}`;
+    blocks.push(`${firstLine}  \n${details}`);
   }
 
-  return lines.join("\n");
+  return [`翻译 \`${escapeInlineCode(originText)}\``, "", blocks.join("\n\n*****\n\n")].join("\n");
 }
