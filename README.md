@@ -9,6 +9,7 @@ It keeps the useful interaction model of the original `w88975.code-translate` ex
 - Look up English in bundled ECDICT-derived shards and Chinese in bundled CC-CEDICT-derived shards.
 - Load only the dictionary shard needed for the current word, so activation stays small and fast.
 - Batch missing segments into one `translateHtml` request instead of opening a third-party translation link.
+- Return the hover immediately with a local-dictionary loading state, then update it with local results, online results, or the actual online error.
 - Continue to work offline for local dictionary hits; network access is used only for missing terms when remote fallback is enabled.
 - Run in the desktop and web extension hosts without native SQLite dependencies.
 
@@ -47,6 +48,8 @@ https://translate-pa.googleapis.com/v1/translateHtml
 The request uses the same `application/json+protobuf` payload shape used by the Google Translate web client. Configure `codeTranslate.googleApiKey` if the public client key bundled in the default settings is unavailable or if you want to use your own Google API consumer identity. The key is a client-side key, not a private credential; restrict replacement keys in Google Cloud where appropriate.
 
 Set `codeTranslate.remoteFallback` to `false` for a strictly offline mode.
+
+The hover is progressive: it does not wait for the remote request before opening. The extension first shows a loading state, then updates the hover decoration when the local lookup and the optional remote request finish. Remote failures are shown in the hover and are retried after a short cooldown instead of being cached as permanent missing translations.
 
 ## Attribution
 

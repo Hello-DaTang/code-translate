@@ -2,7 +2,7 @@
   "name": "code-translate",
   "displayName": "Code Translate",
   "description": "Fast Chinese-English hover translation for code identifiers, with a bundled offline dictionary and Google Translate fallback.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "Hello-DaTang",
   "license": "MIT",
   "repository": {

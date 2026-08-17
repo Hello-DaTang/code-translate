@@ -19,7 +19,15 @@ function formatDetail(value: string): string {
     .join("  \n");
 }
 
-function sourceLabel(source: SegmentTranslation["source"]): string {
+function sourceLabel(result: SegmentTranslation): string {
+  if (result.status === "loading") {
+    return result.source === "google" ? "Google 在线回退" : "查询中";
+  }
+  if (result.status === "error") {
+    return "Google 在线回退";
+  }
+
+  const source = result.source;
   switch (source) {
     case "google":
       return "Google 在线回退";
@@ -33,13 +41,19 @@ function sourceLabel(source: SegmentTranslation["source"]): string {
 export function buildHoverMarkdown(originText: string, results: SegmentTranslation[]): string {
   const lines = [`翻译 \`${escapeInlineCode(originText)}\``, ""];
   for (const result of results) {
-    const details = result.translation ? formatDetail(result.translation) : "本地词库暂无结果，在线翻译也暂时不可用。";
+    const details = result.status === "loading"
+      ? result.source === "google" ? "$(sync~spin) 正在在线翻译…" : "$(sync~spin) 正在查询本地词库…"
+      : result.status === "error"
+        ? `在线翻译失败：${escapeMarkdown(result.error || "未知错误")}`
+        : result.translation
+          ? formatDetail(result.translation)
+          : "本地词库暂无结果，在线翻译也暂时不可用。";
     const phonetic = result.phonetic ? ` _${escapeMarkdown(result.phonetic)}_` : "";
     const partOfSpeech = result.partOfSpeech ? ` _${escapeMarkdown(result.partOfSpeech)}_` : "";
     const headword = result.headword && result.headword.toLowerCase() !== result.term.toLowerCase()
       ? ` （词形：\`${escapeInlineCode(result.headword)}\`）`
       : "";
-    lines.push(`- \`${escapeInlineCode(result.term)}\`${phonetic}${partOfSpeech}${headword}：${details} _（${sourceLabel(result.source)}）_`);
+    lines.push(`- \`${escapeInlineCode(result.term)}\`${phonetic}${partOfSpeech}${headword}：${details} _（${sourceLabel(result)}）_`);
   }
 
   return lines.join("\n");

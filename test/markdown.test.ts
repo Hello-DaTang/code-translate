@@ -14,3 +14,16 @@ test("renders local, remote, and missing results without external links", () => 
   assert.match(markdown, /在线翻译也暂时不可用/);
   assert.doesNotMatch(markdown, /https?:\/\//);
 });
+
+test("renders local and remote loading states plus the remote error", () => {
+  const markdown = buildHoverMarkdown("unknownWord", [
+    { term: "unknown", translation: "", source: "none", status: "loading" },
+    { term: "word", translation: "", source: "google", status: "loading" },
+    { term: "failed", translation: "", source: "google", status: "error", error: "HTTP 403" },
+  ]);
+
+  assert.match(markdown, /正在查询本地词库/);
+  assert.match(markdown, /正在在线翻译/);
+  assert.match(markdown, /在线翻译失败/);
+  assert.match(markdown, /HTTP 403/);
+});
