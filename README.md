@@ -51,4 +51,3 @@ Set `codeTranslate.remoteFallback` to `false` for a strictly offline mode.
 ## Attribution
 
 The extension code is MIT licensed. The bundled data contains ECDICT data under MIT and CC-CEDICT-derived data under CC BY-SA 4.0. Full attribution and source hashes are kept with the data in `resources/dictionary/`.
-

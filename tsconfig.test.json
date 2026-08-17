@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "test-dist",
+    "types": ["node"],
+    "noEmit": false
+  },
+  "include": [
+    "src/word-parser.ts",
+    "src/markdown.ts",
+    "src/types.ts",
+    "test/**/*.ts"
+  ]
+}
