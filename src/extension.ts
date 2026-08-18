@@ -68,6 +68,8 @@ function resolutionKey(
   ].join("\u0000");
 }
 
+const LOCAL_LOOKUP_TIMEOUT_MS = 1500;
+
 export function activate(context: vscode.ExtensionContext): void {
   const dictionary = new DictionaryStore(context.extensionUri);
   const translation = new TranslationService(dictionary);
@@ -100,8 +102,8 @@ export function activate(context: vscode.ExtensionContext): void {
       && resolution.document.version === resolution.documentVersion;
   }
 
-  function refreshHoverIfCursorIsInside(resolution: HoverResolution): void {
-    if (!isCurrentResolution(resolution) || !resolution.range.contains(resolution.editor.selection.active)) {
+  function refreshHover(resolution: HoverResolution): void {
+    if (!isCurrentResolution(resolution)) {
       return;
     }
     void vscode.commands.executeCommand("editor.action.showHover", { focus: "noAutoFocus" });
@@ -155,7 +157,26 @@ export function activate(context: vscode.ExtensionContext): void {
       const initialMarkdown = markdownFor(originText, loadingResults(segments));
 
       void (async () => {
-        const localResults = await translation.translateLocalSegments(segments);
+        let localResults: SegmentTranslation[];
+        try {
+          localResults = await Promise.race([
+            translation.translateLocalSegments(segments),
+            new Promise<SegmentTranslation[]>((resolve) => {
+              setTimeout(() => resolve(segments.map((term) => ({
+                term,
+                translation: "",
+                source: "none",
+              } satisfies SegmentTranslation))), LOCAL_LOOKUP_TIMEOUT_MS);
+            }),
+          ]);
+        } catch (error) {
+          console.warn("Code Translate local dictionary lookup failed", error);
+          localResults = segments.map((term) => ({
+            term,
+            translation: "",
+            source: "none",
+          } satisfies SegmentTranslation));
+        }
         if (!isCurrentResolution(resolution) || localResults.length === 0) {
           return;
         }
@@ -166,7 +187,7 @@ export function activate(context: vscode.ExtensionContext): void {
           .map((result) => result.term);
         if (missing.length === 0 || !translation.isRemoteFallbackEnabled()) {
           resolution.phase = "complete";
-          refreshHoverIfCursorIsInside(resolution);
+          refreshHover(resolution);
           return;
         }
 
@@ -179,7 +200,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const remoteRequest = translation.ensureRemote(missing, targetLanguage);
         resolution.phase = shouldWaitForRemote ? "remote" : "complete";
 
-        refreshHoverIfCursorIsInside(resolution);
+        refreshHover(resolution);
         if (!shouldWaitForRemote) {
           return;
         }
@@ -190,7 +211,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
 
         resolution.phase = "complete";
-        refreshHoverIfCursorIsInside(resolution);
+        refreshHover(resolution);
       })();
 
       return new vscode.Hover(initialMarkdown, range);
