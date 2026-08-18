@@ -1,0 +1,13 @@
+.git/**
+.github/**
+node_modules/**
+src/**
+scripts/**
+test/**
+test-dist/**
+work/**
+tsconfig*.json
+**/*.map
+**/*.ts
+**/*.gitignore
+**/*.gitkeep

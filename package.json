@@ -1,0 +1,80 @@
+{
+  "name": "code-translate",
+  "displayName": "Code Translate",
+  "description": "Fast Chinese-English hover translation for code identifiers, with a bundled offline dictionary and Google Translate fallback.",
+  "version": "2.0.5",
+  "publisher": "Hello-DaTang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hello-DaTang/code-translate.git"
+  },
+  "keywords": [
+    "translation",
+    "dictionary",
+    "hover",
+    "camelCase",
+    "Chinese",
+    "English"
+  ],
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "browser": "./dist/web/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Code Translate",
+      "properties": {
+        "codeTranslate.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable hover translation in the active editor."
+        },
+        "codeTranslate.remoteFallback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Google Translate when the bundled offline dictionaries have no result."
+        },
+        "codeTranslate.googleApiKey": {
+          "type": "string",
+          "default": "AIzaSyATBXajvzQLTDHEQbcpq0Ihe0vWDHmO520",
+          "description": "Google Translate web client key used by translateHtml. You can replace it with your own key."
+        },
+        "codeTranslate.remoteTimeoutMs": {
+          "type": "number",
+          "default": 3500,
+          "minimum": 500,
+          "maximum": 15000,
+          "description": "Maximum wait time for an online fallback request."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build:node && npm run build:web",
+    "build:node": "tsc -p tsconfig.json",
+    "build:web": "esbuild src/extension.ts --bundle --platform=browser --format=iife --external:vscode --outfile=dist/web/extension.js --minify",
+    "check-types": "tsc -p tsconfig.json --noEmit",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test test-dist/test",
+    "refresh-dictionaries": "node scripts/update-dictionaries.mjs",
+    "package": "npm run build && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  }
+}
