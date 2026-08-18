@@ -71,10 +71,7 @@ function resolutionKey(
 export function activate(context: vscode.ExtensionContext): void {
   const dictionary = new DictionaryStore(context.extensionUri);
   const translation = new TranslationService(dictionary);
-  const hoverDecoration = vscode.window.createTextEditorDecorationType({});
   let activeResolution: HoverResolution | undefined;
-
-  context.subscriptions.push(hoverDecoration);
 
   function markdownFor(originText: string, results: SegmentTranslation[]): vscode.MarkdownString {
     const markdown = new vscode.MarkdownString(buildHoverMarkdown(originText, results));
@@ -101,16 +98,6 @@ export function activate(context: vscode.ExtensionContext): void {
       && vscode.window.activeTextEditor === resolution.editor
       && resolution.editor.document.uri.toString() === resolution.document.uri.toString()
       && resolution.document.version === resolution.documentVersion;
-  }
-
-  function setHoverDecoration(resolution: HoverResolution, markdown: vscode.MarkdownString): void {
-    if (!isCurrentResolution(resolution)) {
-      return;
-    }
-    resolution.editor.setDecorations(hoverDecoration, [{
-      range: resolution.range,
-      hoverMessage: markdown,
-    }]);
   }
 
   function refreshHoverIfCursorIsInside(resolution: HoverResolution): void {
@@ -151,9 +138,6 @@ export function activate(context: vscode.ExtensionContext): void {
             : existing.localResults
           : loadingResults(segments);
         const markdown = markdownFor(originText, results);
-        if (editor) {
-          editor.setDecorations(hoverDecoration, [{ range, hoverMessage: markdown }]);
-        }
         return new vscode.Hover(markdown, range);
       }
 
@@ -169,9 +153,6 @@ export function activate(context: vscode.ExtensionContext): void {
       activeResolution = resolution;
 
       const initialMarkdown = markdownFor(originText, loadingResults(segments));
-      if (editor) {
-        editor.setDecorations(hoverDecoration, [{ range, hoverMessage: initialMarkdown }]);
-      }
 
       void (async () => {
         const localResults = await translation.translateLocalSegments(segments);
@@ -185,8 +166,6 @@ export function activate(context: vscode.ExtensionContext): void {
           .map((result) => result.term);
         if (missing.length === 0 || !translation.isRemoteFallbackEnabled()) {
           resolution.phase = "complete";
-          const markdown = markdownFor(originText, localResults);
-          setHoverDecoration(resolution, markdown);
           refreshHoverIfCursorIsInside(resolution);
           return;
         }
@@ -200,13 +179,8 @@ export function activate(context: vscode.ExtensionContext): void {
         const remoteRequest = translation.ensureRemote(missing, targetLanguage);
         resolution.phase = shouldWaitForRemote ? "remote" : "complete";
 
-        const pendingMarkdown = markdownFor(
-          originText,
-          translation.mergeRemoteResults(localResults, targetLanguage),
-        );
-        setHoverDecoration(resolution, pendingMarkdown);
+        refreshHoverIfCursorIsInside(resolution);
         if (!shouldWaitForRemote) {
-          refreshHoverIfCursorIsInside(resolution);
           return;
         }
 
@@ -216,11 +190,6 @@ export function activate(context: vscode.ExtensionContext): void {
         }
 
         resolution.phase = "complete";
-        const finalMarkdown = markdownFor(
-          originText,
-          translation.mergeRemoteResults(localResults, targetLanguage),
-        );
-        setHoverDecoration(resolution, finalMarkdown);
         refreshHoverIfCursorIsInside(resolution);
       })();
 

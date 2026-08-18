@@ -50,7 +50,7 @@ The request uses the same `application/json+protobuf` payload shape used by the 
 
 Set `codeTranslate.remoteFallback` to `false` for a strictly offline mode.
 
-The hover is progressive: it does not wait for the remote request before opening. The extension first shows a loading state, then updates the hover decoration when the local lookup and the optional remote request finish. Remote failures are shown in the hover and are retried after a short cooldown instead of being cached as permanent missing translations.
+The hover is progressive: it does not wait for the remote request before opening. The extension first shows a loading state, then refreshes the same Hover when the local lookup and the optional remote request finish. Remote failures are shown in the hover and are retried after a short cooldown instead of being cached as permanent missing translations.
 
 ## Attribution
 
