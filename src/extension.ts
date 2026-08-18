@@ -1,220 +1,52 @@
 import * as vscode from "vscode";
 import { DictionaryStore } from "./dictionary-store";
-import { buildHoverMarkdown } from "./markdown";
-import { SegmentTranslation } from "./types";
-import { cleanWord, tokenizeForTranslation } from "./word-parser";
-import { targetLanguageFor, TranslationService } from "./translation-service";
-
-function isTokenCharacter(value: string): boolean {
-  return /[\p{L}\p{N}_$-]/u.test(value);
-}
-
-function wordRangeAtPosition(document: vscode.TextDocument, position: vscode.Position): vscode.Range | undefined {
-  const line = document.lineAt(position.line).text;
-  if (position.character > line.length) {
-    return undefined;
-  }
-
-  let start = position.character;
-  let end = position.character;
-  while (start > 0 && isTokenCharacter(line[start - 1])) {
-    start -= 1;
-  }
-  while (end < line.length && isTokenCharacter(line[end])) {
-    end += 1;
-  }
-
-  if (start === end) {
-    return undefined;
-  }
-  return new vscode.Range(position.line, start, position.line, end);
-}
-
-function selectedTextFor(document: vscode.TextDocument, hoveredText: string): string {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.uri.toString() !== document.uri.toString() || editor.selection.isEmpty) {
-    return hoveredText;
-  }
-
-  const selected = cleanWord(document.getText(editor.selection));
-  return selected && selected.includes(hoveredText) ? selected : hoveredText;
-}
-
-interface HoverResolution {
-  key: string;
-  document: vscode.TextDocument;
-  documentVersion: number;
-  editor?: vscode.TextEditor;
-  range: vscode.Range;
-  originText: string;
-  phase: "local" | "remote" | "complete";
-  localResults?: SegmentTranslation[];
-  targetLanguage?: "en" | "zh-CN";
-}
-
-function resolutionKey(
-  document: vscode.TextDocument,
-  range: vscode.Range,
-  originText: string,
-): string {
-  return [
-    document.uri.toString(),
-    document.version,
-    range.start.line,
-    range.start.character,
-    range.end.line,
-    range.end.character,
-    originText,
-  ].join("\u0000");
-}
-
-const LOCAL_LOOKUP_TIMEOUT_MS = 1500;
+import {
+  genMarkdown,
+  markdownFooter,
+  markdownHeader,
+  markdownLine,
+} from "./markdown";
+import { query } from "./query";
+import { cleanWord, getWordArray } from "./word-parser";
 
 export function activate(context: vscode.ExtensionContext): void {
   const dictionary = new DictionaryStore(context.extensionUri);
-  const translation = new TranslationService(dictionary);
-  let activeResolution: HoverResolution | undefined;
-
-  function markdownFor(originText: string, results: SegmentTranslation[]): vscode.MarkdownString {
-    const markdown = new vscode.MarkdownString(buildHoverMarkdown(originText, results));
-    markdown.isTrusted = false;
-    markdown.supportHtml = false;
-    markdown.supportThemeIcons = true;
-    return markdown;
-  }
-
-  function loadingResults(segments: string[]): SegmentTranslation[] {
-    return segments.map((term) => ({
-      term,
-      translation: "",
-      source: "none",
-      status: "loading",
-    } satisfies SegmentTranslation));
-  }
-
-  function isCurrentResolution(
-    resolution: HoverResolution,
-  ): resolution is HoverResolution & { editor: vscode.TextEditor } {
-    return activeResolution === resolution
-      && resolution.editor !== undefined
-      && vscode.window.activeTextEditor === resolution.editor
-      && resolution.editor.document.uri.toString() === resolution.document.uri.toString()
-      && resolution.document.version === resolution.documentVersion;
-  }
-
-  function refreshHover(resolution: HoverResolution): void {
-    if (!isCurrentResolution(resolution)) {
-      return;
-    }
-    void vscode.commands.executeCommand("editor.action.showHover", { focus: "noAutoFocus" });
-  }
 
   const provider: vscode.HoverProvider = {
-    provideHover: (document, position) => {
+    async provideHover(document, position) {
       if (!vscode.workspace.getConfiguration("codeTranslate").get<boolean>("enable", true)) {
         return undefined;
       }
 
-      const range = wordRangeAtPosition(document, position) ?? document.getWordRangeAtPosition(position);
-      if (!range) {
+      const wordRange = document.getWordRangeAtPosition(position);
+      if (!wordRange) {
         return undefined;
       }
 
-      const hoveredText = cleanWord(document.getText(range));
-      const originText = selectedTextFor(document, hoveredText);
-      const segments = tokenizeForTranslation(originText);
-      if (segments.length === 0) {
-        return undefined;
+      let word = document.getText(wordRange);
+      const activeEditor = vscode.window.activeTextEditor;
+      const selectText = activeEditor?.document.getText(activeEditor.selection) ?? "";
+      if (selectText && word.indexOf(selectText) > -1) {
+        word = selectText;
       }
 
-      const key = resolutionKey(document, range, originText);
-      const editor = vscode.window.activeTextEditor?.document.uri.toString() === document.uri.toString()
-        ? vscode.window.activeTextEditor
-        : undefined;
-      const existing = activeResolution?.key === key ? activeResolution : undefined;
+      const originText = cleanWord(word);
+      const words = getWordArray(cleanWord(word)) ?? [];
+      let hoverText = "";
 
-      if (existing) {
-        const results = existing.localResults
-          ? existing.targetLanguage
-            ? translation.mergeRemoteResults(existing.localResults, existing.targetLanguage)
-            : existing.localResults
-          : loadingResults(segments);
-        const markdown = markdownFor(originText, results);
-        return new vscode.Hover(markdown, range);
+      for (let i = 0; i < words.length; i += 1) {
+        const currentWord = words[i];
+        const result = await query(currentWord, dictionary);
+        if (i === 0) {
+          hoverText += genMarkdown(currentWord, result.translation, result.phonetic);
+        } else {
+          hoverText += markdownLine + genMarkdown(currentWord, result.translation, result.phonetic);
+        }
       }
 
-      const resolution: HoverResolution = {
-        key,
-        document,
-        documentVersion: document.version,
-        editor,
-        range,
-        originText,
-        phase: "local",
-      };
-      activeResolution = resolution;
-
-      const initialMarkdown = markdownFor(originText, loadingResults(segments));
-
-      void (async () => {
-        let localResults: SegmentTranslation[];
-        try {
-          localResults = await Promise.race([
-            translation.translateLocalSegments(segments),
-            new Promise<SegmentTranslation[]>((resolve) => {
-              setTimeout(() => resolve(segments.map((term) => ({
-                term,
-                translation: "",
-                source: "none",
-              } satisfies SegmentTranslation))), LOCAL_LOOKUP_TIMEOUT_MS);
-            }),
-          ]);
-        } catch (error) {
-          console.warn("Code Translate local dictionary lookup failed", error);
-          localResults = segments.map((term) => ({
-            term,
-            translation: "",
-            source: "none",
-          } satisfies SegmentTranslation));
-        }
-        if (!isCurrentResolution(resolution) || localResults.length === 0) {
-          return;
-        }
-
-        resolution.localResults = localResults;
-        const missing = localResults
-          .filter((result) => result.source === "none")
-          .map((result) => result.term);
-        if (missing.length === 0 || !translation.isRemoteFallbackEnabled()) {
-          resolution.phase = "complete";
-          refreshHover(resolution);
-          return;
-        }
-
-        const targetLanguage = targetLanguageFor(missing);
-        resolution.targetLanguage = targetLanguage;
-        const statesBeforeRequest = missing.map((segment) => translation.getRemoteState(segment, targetLanguage));
-        const shouldWaitForRemote = statesBeforeRequest.some(
-          (state) => state.status === "unrequested" || state.status === "loading",
-        );
-        const remoteRequest = translation.ensureRemote(missing, targetLanguage);
-        resolution.phase = shouldWaitForRemote ? "remote" : "complete";
-
-        refreshHover(resolution);
-        if (!shouldWaitForRemote) {
-          return;
-        }
-
-        await remoteRequest;
-        if (!isCurrentResolution(resolution)) {
-          return;
-        }
-
-        resolution.phase = "complete";
-        refreshHover(resolution);
-      })();
-
-      return new vscode.Hover(initialMarkdown, range);
+      const header = markdownHeader.replace("$word", originText);
+      hoverText = header + hoverText + markdownFooter;
+      return new vscode.Hover(hoverText);
     },
   };
 

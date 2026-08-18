@@ -2,7 +2,7 @@
   "name": "code-translate",
   "displayName": "Code Translate",
   "description": "Fast Chinese-English hover translation for code identifiers, with a bundled offline dictionary and Google Translate fallback.",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "publisher": "Hello-DaTang",
   "license": "MIT",
   "repository": {
@@ -56,13 +56,6 @@
           "minimum": 500,
           "maximum": 15000,
           "description": "Maximum wait time for an online fallback request."
-        },
-        "codeTranslate.maxSegments": {
-          "type": "number",
-          "default": 24,
-          "minimum": 1,
-          "maximum": 64,
-          "description": "Maximum number of identifier segments translated in one hover request."
         }
       }
     }

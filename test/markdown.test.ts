@@ -16,16 +16,14 @@ test("renders local, remote, and missing results without external links", () => 
   assert.doesNotMatch(markdown, /https?:\/\//);
 });
 
-test("renders local and remote loading states plus the remote error", () => {
-  const markdown = buildHoverMarkdown("unknownWord", [
-    { term: "unknown", translation: "", source: "none", status: "loading" },
-    { term: "word", translation: "", source: "google", status: "loading" },
-    { term: "failed", translation: "", source: "google", status: "error", error: "HTTP 403" },
+test("keeps the original one-pass hover layout", () => {
+  const markdown = buildHoverMarkdown("SpringApplication", [
+    { term: "spring", translation: "春天", phonetic: "/sprɪŋ/", source: "ecdict" },
+    { term: "application", translation: "应用", source: "ecdict" },
   ]);
 
-  assert.match(markdown, /正在查询本地词库/);
-  assert.match(markdown, /正在在线翻译/);
-  assert.match(markdown, /在线翻译失败/);
-  assert.match(markdown, /HTTP 403/);
-  assert.doesNotMatch(markdown, /（本地词库）|（未找到）|Google 在线回退/);
+  assert.match(markdown, /`spring` \/sprɪŋ\/  \n春天/);
+  assert.match(markdown, /\*\*\*\*\*/);
+  assert.match(markdown, /`application`  \n应用/);
+  assert.doesNotMatch(markdown, /正在查询本地词库|正在在线翻译|在线翻译失败/);
 });

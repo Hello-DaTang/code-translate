@@ -7,9 +7,9 @@ test("splits camelCase and PascalCase identifiers", () => {
   assert.deepEqual(splitIdentifier("getConnection"), ["get", "connection"]);
 });
 
-test("keeps acronyms as one word", () => {
-  assert.deepEqual(splitIdentifier("HTTPServerResponse"), ["http", "server", "response"]);
-  assert.deepEqual(splitIdentifier("XMLHttpRequest"), ["xml", "http", "request"]);
+test("matches the original acronym handling", () => {
+  assert.deepEqual(splitIdentifier("HTTPServerResponse"), ["httpserver", "response"]);
+  assert.deepEqual(splitIdentifier("XMLHttpRequest"), ["xmlhttp", "request"]);
 });
 
 test("tokenizes separators and Chinese terms", () => {

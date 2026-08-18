@@ -36,8 +36,6 @@ export interface SegmentTranslation {
   partOfSpeech?: string;
   headword?: string;
   source: DictionarySource;
-  status?: "loading" | "error";
-  error?: string;
 }
 
 export interface DictionaryManifest {

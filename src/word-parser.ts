@@ -1,41 +1,56 @@
-const identifierPartPattern = /[A-Z]{2,}(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[0-9]+/g;
-const textTokenPattern = /[\p{Script=Han}]+|[A-Za-z]+|[0-9]+/gu;
-
-export function cleanWord(value: string): string {
-  return value.replace(/["'`]/g, "").trim();
+function isNumerical(value: string): boolean {
+  return value.trim() !== "" && Number.isFinite(Number(value));
 }
 
+function camelize(value: string): string {
+  if (isNumerical(value)) {
+    return value;
+  }
+
+  const normalized = value.replace(/[\-_\s]+(.)?/g, (_match, character: string | undefined) => character ? character.toUpperCase() : "");
+  return normalized.slice(0, 1).toLowerCase() + normalized.slice(1);
+}
+
+function pascalize(value: string): string {
+  const camelized = camelize(value);
+  return camelized.slice(0, 1).toUpperCase() + camelized.slice(1);
+}
+
+function decamelize(value: string, separator: string): string {
+  return value.split(/(?=[A-Z])/).join(separator).toLowerCase();
+}
+
+// Mirrors the original formatter.getWordArray implementation.
+export function getWordArray(character: string): string[] | undefined {
+  let formatChar = character;
+  const capitalizes = formatChar.match(/[A-Z\s]{2,}/g);
+  if (capitalizes && capitalizes.length) {
+    capitalizes.forEach((item) => {
+      formatChar = formatChar.replace(item, pascalize(item.toLowerCase()));
+    });
+  }
+
+  if (!formatChar) {
+    return undefined;
+  }
+  if (/^[A-Z]+$/.test(character)) {
+    return [character.toLowerCase()];
+  }
+  return Array.from(new Set(decamelize(camelize(formatChar), "|").split("|")));
+}
+
+// Mirrors the original formatter.cleanWord implementation.
+export function cleanWord(character: string): string {
+  return character.replace(/"/g, "");
+}
+
+// Kept as aliases for the existing TypeScript tests and callers.
 export function splitIdentifier(value: string): string[] {
-  const cleaned = cleanWord(value);
-  if (!cleaned) {
-    return [];
-  }
-
-  const matches = cleaned.match(identifierPartPattern);
-  if (!matches || matches.length === 0) {
-    return [cleaned.toLowerCase()];
-  }
-
-  return matches.map((part) => part.toLowerCase());
+  return getWordArray(value) ?? [];
 }
 
 export function tokenizeForTranslation(value: string): string[] {
-  const cleaned = cleanWord(value);
-  if (!cleaned) {
-    return [];
-  }
-
-  const tokens = cleaned.match(textTokenPattern) ?? [];
-  const segments: string[] = [];
-  for (const token of tokens) {
-    if (/^[\p{Script=Han}]+$/u.test(token)) {
-      segments.push(token);
-    } else {
-      segments.push(...splitIdentifier(token));
-    }
-  }
-
-  return Array.from(new Set(segments.filter(Boolean)));
+  return getWordArray(value) ?? [];
 }
 
 export function containsChinese(value: string): boolean {
