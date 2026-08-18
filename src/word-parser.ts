@@ -50,6 +50,11 @@ export function splitIdentifier(value: string): string[] {
 }
 
 export function tokenizeForTranslation(value: string): string[] {
+  const normalized = value.trim();
+  const sentenceTokens = normalized.match(/[\p{L}\p{N}]+(?:['’_-][\p{L}\p{N}]+)*/gu);
+  if (sentenceTokens && (sentenceTokens.length > 1 || sentenceTokens[0] !== normalized)) {
+    return sentenceTokens.flatMap((token) => getWordArray(token) ?? []);
+  }
   return getWordArray(value) ?? [];
 }
 

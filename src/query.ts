@@ -20,6 +20,31 @@ function timeoutSetting(): number {
   return Number.isFinite(value) ? value : 3500;
 }
 
+export async function querySentence(text: string): Promise<string> {
+  const sentence = text.trim();
+  if (!sentence) {
+    return "";
+  }
+
+  const settings = vscode.workspace.getConfiguration("codeTranslate");
+  if (!settings.get<boolean>("remoteFallback", true)) {
+    return "";
+  }
+
+  const apiKey = settings.get<string>("googleApiKey", defaultGoogleClientKey()).trim();
+  try {
+    const translations = await translateWithGoogle(
+      [sentence],
+      targetLanguageFor(sentence),
+      apiKey,
+      timeoutSetting(),
+    );
+    return translations[0]?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
 // Mirrors the original query.js function: resolve one word, then let the
 // caller decide how to append it to the Hover text.
 export async function query(

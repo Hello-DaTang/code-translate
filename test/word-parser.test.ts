@@ -16,3 +16,10 @@ test("tokenizes separators and Chinese terms", () => {
   assert.deepEqual(tokenizeForTranslation("machine_line-code"), ["machine", "line", "code"]);
   assert.deepEqual(tokenizeForTranslation("设备管理器"), ["设备管理器"]);
 });
+
+test("tokenizes selected sentences without punctuation", () => {
+  assert.deepEqual(
+    tokenizeForTranslation("The focused connection is ready."),
+    ["the", "focused", "connection", "is", "ready"],
+  );
+});

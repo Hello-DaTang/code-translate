@@ -13,7 +13,8 @@ function normalizePhonetic(value: string): string {
 }
 
 function formatTranslation(value: string): string {
-  return value.split(ESCAPED_LINE_BREAK).join("  " + LINE_BREAK);
+  const normalized = value.replaceAll(ESCAPED_LINE_BREAK, LINE_BREAK).replace(/\r\n?/g, LINE_BREAK);
+  return normalized.split(LINE_BREAK).join("  " + LINE_BREAK);
 }
 
 // Mirrors the original index.js genMarkdown function while keeping the requested
@@ -25,8 +26,19 @@ export function genMarkdown(word: string, translation: string, phonetic?: string
   return CODE_MARK + word + CODE_MARK + formattedPhonetic + "  " + LINE_BREAK + details;
 }
 
-export function buildHoverMarkdown(originText: string, results: SegmentTranslation[]): string {
+export function buildHoverMarkdown(
+  originText: string,
+  results: SegmentTranslation[],
+  sentenceTranslation?: string,
+): string {
   let hoverText = "";
+  if (sentenceTranslation?.trim()) {
+    hoverText += formatTranslation(sentenceTranslation.trim());
+    if (results.length > 0) {
+      hoverText += markdownLine;
+    }
+  }
+
   for (let i = 0; i < results.length; i += 1) {
     const result = results[i];
     if (i === 0) {

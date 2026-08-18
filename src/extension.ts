@@ -1,13 +1,8 @@
 import * as vscode from "vscode";
 import { DictionaryStore } from "./dictionary-store";
-import {
-  genMarkdown,
-  markdownFooter,
-  markdownHeader,
-  markdownLine,
-} from "./markdown";
-import { query } from "./query";
-import { cleanWord, getWordArray } from "./word-parser";
+import { buildHoverMarkdown } from "./markdown";
+import { query, querySentence } from "./query";
+import { cleanWord, tokenizeForTranslation } from "./word-parser";
 
 export function activate(context: vscode.ExtensionContext): void {
   const dictionary = new DictionaryStore(context.extensionUri);
@@ -18,35 +13,33 @@ export function activate(context: vscode.ExtensionContext): void {
         return undefined;
       }
 
+      const activeEditor = vscode.window.activeTextEditor;
+      const selectText = activeEditor
+        && activeEditor.document.uri.toString() === document.uri.toString()
+        && !activeEditor.selection.isEmpty
+        ? cleanWord(document.getText(activeEditor.selection)).trim()
+        : "";
       const wordRange = document.getWordRangeAtPosition(position);
-      if (!wordRange) {
+      if (!wordRange && !selectText) {
         return undefined;
       }
 
-      let word = document.getText(wordRange);
-      const activeEditor = vscode.window.activeTextEditor;
-      const selectText = activeEditor?.document.getText(activeEditor.selection) ?? "";
-      if (selectText && word.indexOf(selectText) > -1) {
+      let word = wordRange ? document.getText(wordRange) : selectText;
+      if (selectText && (!wordRange || selectText.includes(word))) {
         word = selectText;
       }
 
-      const originText = cleanWord(word);
-      const words = getWordArray(cleanWord(word)) ?? [];
-      let hoverText = "";
+      const originText = cleanWord(word).trim();
+      const words = tokenizeForTranslation(originText);
+      const sentenceTranslation = selectText ? await querySentence(originText) : "";
+      const results = [];
 
       for (let i = 0; i < words.length; i += 1) {
         const currentWord = words[i];
-        const result = await query(currentWord, dictionary);
-        if (i === 0) {
-          hoverText += genMarkdown(currentWord, result.translation, result.phonetic);
-        } else {
-          hoverText += markdownLine + genMarkdown(currentWord, result.translation, result.phonetic);
-        }
+        results.push(await query(currentWord, dictionary));
       }
 
-      const header = markdownHeader.replace("$word", originText);
-      hoverText = header + hoverText + markdownFooter;
-      return new vscode.Hover(hoverText);
+      return new vscode.Hover(buildHoverMarkdown(originText, results, sentenceTranslation));
     },
   };
 

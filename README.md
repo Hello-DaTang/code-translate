@@ -9,8 +9,9 @@ It keeps the useful interaction model of the original `w88975.code-translate` ex
 - Look up English in bundled ECDICT-derived shards and Chinese in bundled CC-CEDICT-derived shards.
 - Load only the dictionary shard needed for the current word, so activation stays small and fast.
 - Query each missing word through `translateHtml` instead of opening a third-party translation link.
+- When text is selected, translate the complete selection with Google first, then show the individual word translations below it.
 - Wait for the complete one-pass translation before returning the Hover, matching the original extension's function flow.
-- Keep the original immersive hover layout: the first line contains only the term and `/phonetic/`, the translation starts on the next line, and compound terms are separated by `*****` without source labels.
+- Keep the original immersive hover layout: multi-meaning dictionary entries keep one meaning per line, and compound terms are separated by `*****` without source labels.
 - Continue to work offline for local dictionary hits; network access is used only for missing terms when remote fallback is enabled.
 - Run in the desktop and web extension hosts without native SQLite dependencies.
 
